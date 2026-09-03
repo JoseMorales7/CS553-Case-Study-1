@@ -1,6 +1,4 @@
 accelerate
-diffusers
-invisible_watermark
+pillow
 torch
 transformers
-xformers
