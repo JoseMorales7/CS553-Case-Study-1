@@ -1,4 +1,5 @@
 import gradio as gr
+import spaces
 import numpy as np
 import random
 
@@ -21,7 +22,7 @@ MAX_SEED = np.iinfo(np.int32).max
 MAX_IMAGE_SIZE = 1024
 
 
-# @spaces.GPU #[uncomment to use ZeroGPU]
+@spaces.GPU #[uncomment to use ZeroGPU]
 def infer(
     prompt,
     negative_prompt,
