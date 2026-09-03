@@ -1,0 +1,21 @@
+# Taken from https://github.com/rcpaffenroth/DSCS553_WPI_Fall_2026 with minor modifications
+name: Sync to Hugging Face Hub
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+
+      - name: Sync with hugging face
+        uses: huggingface/hub-sync@v0.1.0
+        with:
+          github_repo_id: ${{ github.repository }}
+          huggingface_repo_id: JMo-7/CS553-Case-Study-1
+          hf_token: ${{ secrets.HF_TOKEN }}
