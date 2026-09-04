@@ -10,7 +10,7 @@ from PIL import Image
 from transformers import pipeline
 
 
-REMOTE_MODEL = "Qwen/Qwen2.5-VL-7B-Instruct"
+REMOTE_MODEL = "Qwen/Qwen3.8-27B"
 LOCAL_MODEL = "HuggingFaceTB/SmolVLM-256M-Instruct"
 
 DEFAULT_RUBRIC = """Evaluate the artwork as a thoughtful art critic. Consider:
