@@ -191,7 +191,7 @@ CSS = """
 """
 
 
-with gr.Blocks(css=CSS, theme=gr.themes.Soft(), title="Canvas Critic") as demo:
+with gr.Blocks(title="Canvas Critic") as demo:
     image_path_state = gr.State()
 
     gr.Markdown("# 🎨 Canvas Critic", elem_id="app-title")
@@ -292,4 +292,4 @@ with gr.Blocks(css=CSS, theme=gr.themes.Soft(), title="Canvas Critic") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(css=CSS, theme=gr.themes.Soft())
