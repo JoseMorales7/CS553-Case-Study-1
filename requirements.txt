@@ -1,4 +1,5 @@
 accelerate
+huggingface_hub
 pillow
 torch
 transformers
