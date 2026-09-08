@@ -1,4 +1,5 @@
 accelerate
 pillow
 torch
+torchvision
 transformers
