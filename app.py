@@ -124,6 +124,7 @@ def local_score(image_path, prompt, max_tokens, temperature, top_p) -> str:
     )
 
     generated = output[0]["generated_text"]
+    print(generated)
     if isinstance(generated, list):
         generated = generated[-1].get("content", str(generated[-1]))
     return str(generated)
