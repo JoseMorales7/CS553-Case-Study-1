@@ -1,6 +1,5 @@
 import base64
 import mimetypes
-import os
 from pathlib import Path
 
 import gradio as gr
@@ -11,7 +10,7 @@ from PIL import Image
 from transformers import pipeline
 
 
-REMOTE_MODEL = "Qwen/Qwen2.5-VL-7B-Instruct"
+REMOTE_MODEL = "Qwen/Qwen3.8-27B"
 LOCAL_MODEL = "HuggingFaceTB/SmolVLM-256M-Instruct"
 
 DEFAULT_RUBRIC = """Evaluate the artwork as a thoughtful art critic. Consider:
@@ -65,15 +64,8 @@ def image_as_data_url(image_path: str) -> str:
     return f"data:{mime_type};base64,{encoded}"
 
 
-def remote_score(image_path, prompt, max_tokens, temperature, top_p) -> str:
-    hf_token = os.getenv("HF_TOKEN")
-    if not hf_token:
-        raise gr.Error(
-            "The hosted model needs an HF_TOKEN Space secret. Add it in the "
-            "Space settings, or select 'Switch to local model'."
-        )
-
-    client = InferenceClient(provider="auto", api_key=hf_token)
+def remote_score(image_path, prompt, max_tokens, temperature, top_p, hf_token) -> str:
+    client = InferenceClient(provider="auto", token=hf_token)
     response = client.chat.completions.create(
         model=REMOTE_MODEL,
         messages=[
@@ -133,7 +125,15 @@ def local_score(image_path, prompt, max_tokens, temperature, top_p) -> str:
     return str(generated)
 
 
-def score_artwork(image_path, rubric, max_tokens, temperature, top_p, use_local_model):
+def score_artwork(
+    image_path,
+    rubric,
+    max_tokens,
+    temperature,
+    top_p,
+    use_local_model,
+    hf_token: gr.OAuthToken,
+):
     if not image_path:
         raise gr.Error("Please upload an image before requesting a critique.")
 
@@ -145,7 +145,19 @@ def score_artwork(image_path, rubric, max_tokens, temperature, top_p, use_local_
         if use_local_model:
             critique = local_score(image_path, prompt, max_tokens, temperature, top_p)
         else:
-            critique = remote_score(image_path, prompt, max_tokens, temperature, top_p)
+            if hf_token is None or not getattr(hf_token, "token", None):
+                raise gr.Error(
+                    "Please sign in with Hugging Face to use the hosted model, "
+                    "or select 'Switch to local model'."
+                )
+            critique = remote_score(
+                image_path,
+                prompt,
+                max_tokens,
+                temperature,
+                top_p,
+                hf_token.token,
+            )
     except gr.Error:
         raise
     except Exception as error:
@@ -191,8 +203,17 @@ CSS = """
 """
 
 
-with gr.Blocks(css=CSS, theme=gr.themes.Soft(), title="Canvas Critic") as demo:
+with gr.Blocks(title="Canvas Critic") as demo:
     image_path_state = gr.State()
+
+    with gr.Sidebar():
+        gr.Markdown("### Hosted model access")
+        gr.LoginButton()
+        gr.Markdown(
+            "Sign in with Hugging Face to use the hosted model. The local model "
+            "does not require a login.",
+            elem_id="model-note",
+        )
 
     gr.Markdown("# 🎨 Canvas Critic", elem_id="app-title")
     gr.Markdown(
@@ -292,4 +313,4 @@ with gr.Blocks(css=CSS, theme=gr.themes.Soft(), title="Canvas Critic") as demo:
 
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(css=CSS, theme=gr.themes.Soft())
