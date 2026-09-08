@@ -98,27 +98,31 @@ def local_score(image_path, prompt, max_tokens, temperature, top_p) -> str:
             dtype=dtype,
         )
 
-    with Image.open(image_path) as uploaded_image:
-        image = uploaded_image.convert("RGB")
-
     messages = [
         {
             "role": "user",
             "content": [
-                {"type": "image"},
-                {"type": "text", "text": prompt},
+                {
+                    "type": "image",
+                    "path": image_path,
+                },
+                {
+                    "type": "text",
+                    "text": prompt,
+                },
             ],
         }
     ]
+
     output = local_pipe(
         text=messages,
-        images=[image],
         max_new_tokens=max_tokens,
         do_sample=temperature > 0,
         temperature=max(temperature, 0.01),
         top_p=top_p,
         return_full_text=False,
     )
+
     generated = output[0]["generated_text"]
     if isinstance(generated, list):
         generated = generated[-1].get("content", str(generated[-1]))
