@@ -19,3 +19,17 @@ jobs:
           github_repo_id: ${{ github.repository }}
           huggingface_repo_id: JMo-7/CS553-Case-Study-1
           hf_token: ${{ secrets.HF_TOKEN }}
+
+      - name: Notify Discord on Success
+        if: success()
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          content: "✅ **Sync workflow succeeded!** Your CS553 Case Study 1 code was successfully deployed to Hugging Face Spaces."
+
+      - name: Notify Discord on Failure
+        if: failure()
+        uses: tsickert/discord-webhook@v5.3.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          content: "❌ **Sync workflow failed!** Failed to sync CS553 Case Study 1 to Hugging Face Spaces. Please check the logs."

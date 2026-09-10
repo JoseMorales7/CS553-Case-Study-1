@@ -9,6 +9,7 @@ __pycache__/
 *$py.class
 build/
 dist/
+.pytest_cache
 
 # Secrets and Environment Variables
 .env

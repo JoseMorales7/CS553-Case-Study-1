@@ -144,26 +144,33 @@ def score_artwork(
     try:
         if use_local_model:
             critique = local_score(image_path, prompt, max_tokens, temperature, top_p)
+            status_msg = f"Critique complete · Local model · `{model_name}`"
         else:
             if hf_token is None or not getattr(hf_token, "token", None):
                 raise gr.Error(
                     "Please sign in with Hugging Face to use the hosted model, "
                     "or select 'Switch to local model'."
                 )
-            critique = remote_score(
-                image_path,
-                prompt,
-                max_tokens,
-                temperature,
-                top_p,
-                hf_token.token,
-            )
+            try:
+                critique = remote_score(
+                    image_path,
+                    prompt,
+                    max_tokens,
+                    temperature,
+                    top_p,
+                    hf_token.token,
+                )
+                status_msg = f"Critique complete · Hosted model · `{model_name}`"
+            except Exception as e:
+                gr.Warning(f"Remote model failed ({e}). Automatically switching to local model...")
+                critique = local_score(image_path, prompt, max_tokens, temperature, top_p)
+                status_msg = f"Critique complete · Failover to Local model · `{LOCAL_MODEL}`"
     except gr.Error:
         raise
     except Exception as error:
-        raise gr.Error(f"The {mode.lower()} model could not score this image: {error}") from error
+        raise gr.Error(f"The model could not score this image: {error}") from error
 
-    return critique, f"Critique complete · {mode} model · `{model_name}`"
+    return critique, status_msg
 
 
 def clear_workspace():
