@@ -34,12 +34,17 @@ score 76 to 100: 76-ea, 77-eb, 78-ec, 79-ed, ..., 100-ey.
 The answer only outputs 2 corresponding letters.
 """
 
-# One of ArtiMuse's eight aesthetic attributes. "Comprehensive Evaluation" is
-# the summary dimension; the other seven are narrower.
-ARTIMUSE_ASPECT = "Comprehensive Evaluation"
-ARTIMUSE_ASPECT_QUESTION = (
-    "Please evaluate the aesthetic quality of this image from the aspect of "
-    f"{ARTIMUSE_ASPECT}."
+# ArtiMuse ships eight canned attribute questions of the form "Please evaluate
+# the aesthetic quality of this image from the aspect of <X>". Tested on the
+# Space, those return evaluative description -- accurate, but it tells the user
+# what their image looks like, which they can already see. ArtiMuse is an
+# InternVL3-8B chat model, so we are not limited to those questions; asking for
+# advice directly gets advice.
+ARTIMUSE_ADVICE_QUESTION = (
+    "Suggest three specific ways to improve the aesthetic quality of this image. "
+    "Consider composition, lighting, colour, and technique. "
+    "Answer as exactly three short bullet points, each naming one concrete change "
+    "the artist should make. Do not describe what the image shows."
 )
 
 # The hosted model has no aesthetic head, so we ask it for the same shape in

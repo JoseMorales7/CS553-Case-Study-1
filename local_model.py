@@ -23,7 +23,7 @@ from transformers import AutoTokenizer
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 
 from config import (
-    ARTIMUSE_ASPECT_QUESTION,
+    ARTIMUSE_ADVICE_QUESTION,
     ARTIMUSE_SCORE_QUESTION,
     LOCAL_MODEL,
 )
@@ -156,7 +156,7 @@ def local_critique(image_path, max_tokens, temperature, top_p) -> Critique:
         top_p=float(top_p),
         pad_token_id=tokenizer.eos_token_id,
     )
-    evaluation = model.chat(tokenizer, pixel_values, ARTIMUSE_ASPECT_QUESTION, text_config)
+    evaluation = model.chat(tokenizer, pixel_values, ARTIMUSE_ADVICE_QUESTION, text_config)
 
     return Critique(
         score=score,
