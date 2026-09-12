@@ -1,175 +1,14 @@
-import base64
-import mimetypes
-from pathlib import Path
-
 import gradio as gr
-import spaces
-import torch
-from huggingface_hub import InferenceClient
-from PIL import Image
-from transformers import pipeline
+from config import LOCAL_MODEL, REMOTE_MODEL, ASPECTS
+from router import score_artwork # routing and failover
+from images import preview_upload
 
 
-REMOTE_MODEL = "Qwen/Qwen3.8-27B"
-LOCAL_MODEL = "HuggingFaceTB/SmolVLM-256M-Instruct"
-
-DEFAULT_RUBRIC = """Evaluate the artwork as a thoughtful art critic. Consider:
-- composition and visual hierarchy
-- color, lighting, and tonal control
-- technique and execution
-- originality and emotional impact
-
-Judge only the artwork visible in the image. Be constructive, specific, and respectful."""
-
-local_pipe = None
-
-
-def build_prompt(rubric: str) -> str:
-    return f"""{rubric.strip() or DEFAULT_RUBRIC}
-
-Return your assessment in exactly this general structure:
-
-## Score: X/10
-### First impression
-One or two concise sentences.
-
-### What works
-- Two or three specific strengths grounded in visible details.
-
-### What could improve
-- Two or three specific, actionable suggestions.
-
-### Verdict
-One concise closing sentence.
-
-The score must be a single number from 1 through 10. Do not claim to know the
-artist's identity, intent, or process unless it is plainly visible in the image."""
-
-
-def preview_upload(file_path: str | None):
-    if not file_path:
-        return None, None, "Upload an image to begin."
-
-    try:
-        with Image.open(file_path) as image:
-            preview = image.convert("RGB")
-        return preview, file_path, "Image ready for critique."
-    except Exception as error:
-        return None, None, f"Could not read that image: {error}"
-
-
-def image_as_data_url(image_path: str) -> str:
-    mime_type = mimetypes.guess_type(image_path)[0] or "image/jpeg"
-    encoded = base64.b64encode(Path(image_path).read_bytes()).decode("utf-8")
-    return f"data:{mime_type};base64,{encoded}"
-
-
-def remote_score(image_path, prompt, max_tokens, temperature, top_p, hf_token) -> str:
-    client = InferenceClient(provider="auto", token=hf_token)
-    response = client.chat.completions.create(
-        model=REMOTE_MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "image_url", "image_url": {"url": image_as_data_url(image_path)}},
-                    {"type": "text", "text": prompt},
-                ],
-            }
-        ],
-        max_tokens=max_tokens,
-        temperature=temperature,
-        top_p=top_p,
-    )
-    return response.choices[0].message.content
-
-
-@spaces.GPU
-def local_score(image_path, prompt, max_tokens, temperature, top_p) -> str:
-    global local_pipe
-
-    if local_pipe is None:
-        device = 0 if torch.cuda.is_available() else -1
-        dtype = torch.float16 if torch.cuda.is_available() else torch.float32
-        local_pipe = pipeline(
-            "image-text-to-text",
-            model=LOCAL_MODEL,
-            device=device,
-            dtype=dtype,
-        )
-
-    messages = [
-        {
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "path": image_path,
-                },
-                {
-                    "type": "text",
-                    "text": prompt,
-                },
-            ],
-        }
-    ]
-
-    output = local_pipe(
-        text=messages,
-        max_new_tokens=max_tokens,
-        do_sample=temperature > 0,
-        temperature=max(temperature, 0.01),
-        top_p=top_p,
-        return_full_text=False,
-    )
-
-    generated = output[0]["generated_text"]
-    print(generated)
-    if isinstance(generated, list):
-        generated = generated[-1].get("content", str(generated[-1]))
-    return str(generated)
-
-
-def score_artwork(
-    image_path,
-    rubric,
-    max_tokens,
-    temperature,
-    top_p,
-    use_local_model,
-    hf_token: gr.OAuthToken,
-):
-    if not image_path:
-        raise gr.Error("Please upload an image before requesting a critique.")
-
-    prompt = build_prompt(rubric)
-    model_name = LOCAL_MODEL if use_local_model else REMOTE_MODEL
-    mode = "Local" if use_local_model else "Hosted"
-
-    try:
-        if use_local_model:
-            critique = local_score(image_path, prompt, max_tokens, temperature, top_p)
-        else:
-            if hf_token is None or not getattr(hf_token, "token", None):
-                raise gr.Error(
-                    "Please sign in with Hugging Face to use the hosted model, "
-                    "or select 'Switch to local model'."
-                )
-            critique = remote_score(
-                image_path,
-                prompt,
-                max_tokens,
-                temperature,
-                top_p,
-                hf_token.token,
-            )
-    except gr.Error:
-        raise
-    except Exception as error:
-        raise gr.Error(f"The {mode.lower()} model could not score this image: {error}") from error
-
-    return critique, f"Critique complete · {mode} model · `{model_name}`"
-
+def login_status(profile: gr.OAuthProfile | None):
+    if profile is None:
+        return ("Sign in with Hugging Face to use the hosted model on your own inference credits."
+                "The local model does not require a login.")
+    return (f"Signed in as **{profile.name}**. You can now use the hosted model.")
 
 def clear_workspace():
     return None, None, None, "Upload an image to begin.", "Your critique will appear here."
@@ -211,18 +50,43 @@ CSS = """
 with gr.Blocks(title="Canvas Critic") as demo:
     image_path_state = gr.State()
 
-    with gr.Sidebar():
+    with gr.Sidebar(width=420):
         gr.Markdown("### Hosted model access")
         gr.LoginButton()
+        login_note = gr.Markdown(elem_id="model-note")
+
+        gr.Markdown("### Scoring settings")
+        use_local_model = gr.Checkbox(
+            label="Switch to local model",
+            value = False,
+            info = f"Runs {LOCAL_MODEL} in this Space instead of the hosted API."
+        )
+        aspect = gr.Dropdown(
+            label="Aspect to evaluate",
+            choices=ASPECTS,
+            value=ASPECTS[0],
+            info="The model will give advice on how to improve this aspect of the image.",
+        )
+        temperature = gr.Slider(
+            minimum=0.0, maximum=1.5, value=0.0, step=0.1,
+            label="Creative freedom (temperature)",
+        )
+        top_p = gr.Slider(
+            minimum=0.1, maximum=1.0, value=0.9, step=0.05,
+            label="Diversity (top-p)",
+            info="Higher values allow more diverse responses.",
+        )
         gr.Markdown(
-            "Sign in with Hugging Face to use the hosted model. The local model "
-            "does not require a login.",
+            f"Hosted: `{REMOTE_MODEL}` — a general vision LLM.  \n"
+            f"Local: `{LOCAL_MODEL}` — a model trained specifically to "
+            "score image aesthetics.",
             elem_id="model-note",
         )
 
     gr.Markdown("# 🎨 Canvas Critic", elem_id="app-title")
     gr.Markdown(
-        "Upload an artwork and receive a focused, AI-assisted score and critique.",
+        "Upload an artwork and receive an aesthetic score out of 100, plus "
+        "concrete suggestions for improving it.",
         elem_id="app-subtitle",
     )
 
@@ -237,44 +101,6 @@ with gr.Blocks(title="Canvas Critic") as demo:
             )
             image_preview = gr.Image(label="Artwork preview", interactive=False, height=360)
             upload_status = gr.Markdown("Upload an image to begin.", elem_id="status-line")
-
-            with gr.Accordion("Scoring settings", open=False):
-                rubric = gr.Textbox(
-                    value=DEFAULT_RUBRIC,
-                    label="Critic instructions",
-                    lines=8,
-                )
-                max_tokens = gr.Slider(
-                    minimum=128,
-                    maximum=1024,
-                    value=512,
-                    step=32,
-                    label="Maximum response tokens",
-                )
-                temperature = gr.Slider(
-                    minimum=0.0,
-                    maximum=1.5,
-                    value=0.4,
-                    step=0.1,
-                    label="Temperature",
-                )
-                top_p = gr.Slider(
-                    minimum=0.1,
-                    maximum=1.0,
-                    value=0.9,
-                    step=0.05,
-                    label="Top-p",
-                )
-                use_local_model = gr.Checkbox(
-                    label="Switch to local model",
-                    value=False,
-                    info="Runs a smaller vision model in this Space instead of the hosted API.",
-                )
-                gr.Markdown(
-                    "Local mode trades some critique quality for privacy and independence "
-                    "from the hosted inference API.",
-                    elem_id="model-note",
-                )
 
             with gr.Row():
                 score_button = gr.Button("Score this artwork", variant="primary", scale=3)
@@ -297,8 +123,7 @@ with gr.Blocks(title="Canvas Critic") as demo:
         fn=score_artwork,
         inputs=[
             image_path_state,
-            rubric,
-            max_tokens,
+            aspect,
             temperature,
             top_p,
             use_local_model,
@@ -315,6 +140,7 @@ with gr.Blocks(title="Canvas Critic") as demo:
             critique_output,
         ],
     ).then(lambda: "", outputs=model_status)
+    demo.load(fn=login_status, outputs=login_note)
 
 
 if __name__ == "__main__":
