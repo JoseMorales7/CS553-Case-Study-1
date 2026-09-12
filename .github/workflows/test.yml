@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.14'
           cache: 'pip'
@@ -32,7 +32,7 @@ jobs:
 
       - name: Notify Discord on Success
         if: success()
-        uses: tsickert/discord-webhook@v5.3.0
+        uses: tsickert/discord-webhook@v7.0.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
           content: "✅ Tests passed on `${{ github.ref_name }}` (${{ github.sha }})."

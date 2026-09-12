@@ -1,9 +1,7 @@
 import pytest
-from PIL import Image
-
-from app import preview_upload
 from local_model import aestoken2score
 from remote_model import parse_response
+from images import preview_upload
 
 
 def test_preview_upload_none():
