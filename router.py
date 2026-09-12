@@ -2,7 +2,6 @@
 
 import logging
 import gradio as gr
-from config import LOCAL_MODEL, REMOTE_MODEL
 from critique import Critique
 from hf_auth import resolve_token
 from local_model import local_critique

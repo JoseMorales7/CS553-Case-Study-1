@@ -42,21 +42,21 @@ The answer only outputs 2 corresponding letters.
 def advice_question(aspect: str) -> str:
     focus = f" in terms of {aspect}" if aspect else ""
     return f"""Suggest three specific ways to improve the aesthetic quality of this image{focus}.
-    Answer as exactly three short bullet points, each naming one concrete change the artist should make. 
-    Do not describe what the image shows."""
+Answer as exactly three short bullet points, each naming one concrete change the artist should make. 
+Do not describe what the image shows."""
 
 
 
 # Ask for advice from Qwen3
 def remote_prompt(aspect: str) -> str:
     focus = f" in terms of {aspect}" if aspect else ""
-    return f"""Rate this image's aesthetic quality{focus}.
+    return f"""Rate this image's aesthetic quality.
 
 Reply in exactly this format, once, and nothing else:
 
 ## Score: N / 100
 
-### {EVALUATION_HEADING} {focus}
+### {EVALUATION_HEADING}
 - <one concrete change, at most 15 words>
 - <one concrete change, at most 15 words>
 - <one concrete change, at most 15 words>

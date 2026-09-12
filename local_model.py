@@ -71,15 +71,6 @@ def _artimuse_class():
 
 def _ensure_loaded():
     # Load the 15.9GB checkpoint once at import
-    """Load the 15.9 GB checkpoint, once.
-
-    Inside a Space this is called at import (see the bottom of this module), not
-    on first request. Space disk is ephemeral, so the first call after a restart
-    would otherwise download 15.9 GB *inside* the @spaces.GPU window and blow the
-    duration limit. ZeroGPU also documents that models should be placed on cuda
-    at root module level. Locally we stay lazy so importing this module for a
-    test does not pull 16 GB into memory.
-    """
     global _model, _tokenizer
     if _model is not None:
         return _model, _tokenizer

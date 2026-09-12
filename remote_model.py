@@ -1,6 +1,5 @@
 import base64
 import re
-from pathlib import Path
 import io
 from PIL import Image
 
@@ -71,7 +70,7 @@ def remote_critique(image_path, aspect, temperature, top_p, hf_token) -> Critiqu
         raise RuntimeError(
             f"Hosted model returned no visible content (finish_reason="
             f"{choice.finish_reason}); the token budget was likely exhausted by "
-            "internal reasoning. Try raising 'Maximum response tokens'."
+            "internal reasoning."
         )
 
     score, evaluation = parse_response(content)
