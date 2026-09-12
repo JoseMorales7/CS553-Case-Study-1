@@ -1,12 +1,53 @@
 # Taken from https://github.com/rcpaffenroth/DSCS553_WPI_Fall_2026 with minor modifications
-name: Sync to Hugging Face Hub
+name: Test and Sync to Hugging Face Hub
 
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+          pip install -r requirements.txt
+
+      - name: Run pytest
+        run: pytest test_app.py
+
+      - name: Notify Discord on Success
+        if: success()
+        uses: tsickert/discord-webhook@v7.0.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          content: "✅ Tests passed on `${{ github.ref_name }}` (${{ github.sha }})."
+
+      - name: Notify Discord on Failure
+        if: failure()
+        uses: tsickert/discord-webhook@v7.0.0
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
+          content: "❌ Tests failed on `${{ github.ref_name }}`. See ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
   sync:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
 
     steps:
@@ -22,14 +63,14 @@ jobs:
 
       - name: Notify Discord on Success
         if: success()
-        uses: tsickert/discord-webhook@v5.3.0
+        uses: tsickert/discord-webhook@v7.0.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
           content: "✅ Sync workflow succeeded! The code was successfully synced to Hugging Face Spaces."
 
       - name: Notify Discord on Failure
         if: failure()
-        uses: tsickert/discord-webhook@v5.3.0
+        uses: tsickert/discord-webhook@v7.0.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
           content: "❌ Sync workflow failed! Failed to sync to Hugging Face Spaces. Please check the logs."
