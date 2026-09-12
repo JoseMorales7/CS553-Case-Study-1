@@ -1,14 +1,9 @@
-"""The shared result type for both models."""
-
 from dataclasses import dataclass
-
 from config import EVALUATION_HEADING
 
-
+# The shared result type for both models
 @dataclass
 class Critique:
-    """One assessment, whichever model produced it."""
-
     score: int | None
     evaluation: str
     model_name: str

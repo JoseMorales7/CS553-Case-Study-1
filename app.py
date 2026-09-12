@@ -1,14 +1,8 @@
-"""Canvas Critic - Gradio UI.
-
-Model logic lives in local_model.py / remote_model.py; routing and failover in
-router.py; prompts and identifiers in config.py.
-"""
-
 import gradio as gr
 from PIL import Image
 
-from config import LOCAL_MODEL, REMOTE_MODEL
-from router import score_artwork
+from config import LOCAL_MODEL, REMOTE_MODEL, ASPECTS
+from router import score_artwork # routing and failover
 
 
 def preview_upload(file_path: str | None):
@@ -22,6 +16,12 @@ def preview_upload(file_path: str | None):
     except Exception as error:
         return None, None, f"Could not read that image: {error}"
 
+
+def login_status(profile: gr.OAuthProfile | None):
+    if profile is None:
+        return ("Sign in with Hugging Face to use the hosted model on your own inference credits."
+                "The local model does not require a login.")
+    return (f"Signed in as **{profile.name}**. You can now use the hosted model.")
 
 def clear_workspace():
     return None, None, None, "Upload an image to begin.", "Your critique will appear here."
@@ -66,9 +66,37 @@ with gr.Blocks(title="Canvas Critic") as demo:
     with gr.Sidebar():
         gr.Markdown("### Hosted model access")
         gr.LoginButton()
+        login_note = gr.Markdown(elem_id="model-note")
+
+        gr.Markdown("### Scoring settings")
+        use_local_model = gr.Checkbox(
+            label="Switch to local model",
+            value = False,
+            info = f"Runs {LOCAL_MODEL} in this Space instead of the hosted API."
+        )
+        aspect = gr.Dropdown(
+            label="Aspect to evaluate",
+            choices=ASPECTS,
+            value=ASPECTS[0],
+            info="The model will give advice on how to improve this aspect of the image.",
+        )
+        max_tokens = gr.Slider(
+            minimum=512, maximum=4096, value=2048, step=256, 
+            label="Maximum response tokens",
+        )
+        temperature = gr.Slider(
+            minimum=0.0, maximum=1.5, value=0.4, step=0.1,
+            label="Creative freedom (temperature)",
+        )
+        top_p = gr.Slider(
+            minimum=0.1, maximum=1.0, value=0.9, step=0.05,
+            label="Diversity (top-p)",
+            info="Higher values allow more diverse responses.",
+        )
         gr.Markdown(
-            "Sign in with Hugging Face to use the hosted model on your own "
-            "inference credits. The local model does not require a login.",
+            f"Hosted: `{REMOTE_MODEL}` — a general vision LLM.  \n"
+            f"Local: `{LOCAL_MODEL}` — a model trained specifically to "
+            "score image aesthetics.",
             elem_id="model-note",
         )
 
@@ -91,42 +119,6 @@ with gr.Blocks(title="Canvas Critic") as demo:
             image_preview = gr.Image(label="Artwork preview", interactive=False, height=360)
             upload_status = gr.Markdown("Upload an image to begin.", elem_id="status-line")
 
-            with gr.Accordion("Scoring settings", open=False):
-                max_tokens = gr.Slider(
-                    minimum=512,
-                    maximum=4096,
-                    value=2048,
-                    step=256,
-                    label="Maximum response tokens",
-                    info="The hosted model spends part of this budget on internal reasoning.",
-                )
-                temperature = gr.Slider(
-                    minimum=0.0,
-                    maximum=1.5,
-                    value=0.4,
-                    step=0.1,
-                    label="Temperature",
-                    info="0 makes results reproducible.",
-                )
-                top_p = gr.Slider(
-                    minimum=0.1,
-                    maximum=1.0,
-                    value=0.9,
-                    step=0.05,
-                    label="Top-p",
-                )
-                use_local_model = gr.Checkbox(
-                    label="Switch to local model",
-                    value=False,
-                    info=f"Runs {LOCAL_MODEL} in this Space instead of the hosted API.",
-                )
-                gr.Markdown(
-                    f"Hosted: `{REMOTE_MODEL}` — a general vision LLM.  \n"
-                    f"Local: `{LOCAL_MODEL}` — a model trained specifically to "
-                    "score image aesthetics.",
-                    elem_id="model-note",
-                )
-
             with gr.Row():
                 score_button = gr.Button("Score this artwork", variant="primary", scale=3)
                 clear_button = gr.Button("Clear", scale=1)
@@ -148,6 +140,7 @@ with gr.Blocks(title="Canvas Critic") as demo:
         fn=score_artwork,
         inputs=[
             image_path_state,
+            aspect,
             max_tokens,
             temperature,
             top_p,
@@ -165,6 +158,7 @@ with gr.Blocks(title="Canvas Critic") as demo:
             critique_output,
         ],
     ).then(lambda: "", outputs=model_status)
+    demo.load(fn=login_status, outputs=login_note)
 
 
 if __name__ == "__main__":

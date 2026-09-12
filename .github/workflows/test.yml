@@ -33,11 +33,11 @@ jobs:
         uses: tsickert/discord-webhook@v5.3.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
-          content: "✅ **Test workflow succeeded!** Your CS553 Case Study 1 application passed all tests."
+          content: "✅ Test workflow succeeded! The code was successfully synced to Hugging Face Spaces."
 
       - name: Notify Discord on Failure
         if: failure()
         uses: tsickert/discord-webhook@v5.3.0
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK }}
-          content: "❌ **Test workflow failed!** Your CS553 Case Study 1 tests did not pass. Please check the GitHub Actions logs."
+          content: "❌ Test workflow failed! Failed to sync to Hugging Face Spaces. Please check the logs."
