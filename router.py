@@ -14,7 +14,6 @@ logger = logging.getLogger(__name__)
 def score_artwork(
     image_path,
     aspect,
-    max_tokens,
     temperature,
     top_p,
     use_local_model,
@@ -26,7 +25,7 @@ def score_artwork(
 
     try:
         if use_local_model:
-            result = _local_with_fallback(image_path, aspect, max_tokens, temperature, top_p, hf_token)
+            result = _local_with_fallback(image_path, aspect, temperature, top_p, hf_token)
             return result.to_markdown(), result.to_status()
 
         token = resolve_token(hf_token)
@@ -35,12 +34,12 @@ def score_artwork(
                 "No Hugging Face credentials available. "
                 "Automatically switching to the local model."
             )
-            result = local_critique(image_path, aspect, max_tokens, temperature, top_p)
+            result = local_critique(image_path, aspect, temperature, top_p)
             result.route = "Failover (no credentials)"
             return result.to_markdown(), result.to_status()
 
         try:
-            result = remote_critique(image_path, aspect,max_tokens, temperature, top_p, token)
+            result = remote_critique(image_path, aspect, temperature, top_p, token)
             return result.to_markdown(), result.to_status()
         except Exception:
             logger.warning("Hosted model failed, failing over to local", exc_info=True)
@@ -48,7 +47,7 @@ def score_artwork(
                 "The hosted model is unavailable. "
                 "Automatically switching to the local model."
             )
-            result = local_critique(image_path, aspect, max_tokens, temperature, top_p)
+            result = local_critique(image_path, aspect, temperature, top_p)
             result.route = "Failover (hosted unavailable)"
             return result.to_markdown(), result.to_status()
 
@@ -59,10 +58,10 @@ def score_artwork(
 
 
 
-def _local_with_fallback(image_path, aspect, max_tokens, temperature, top_p, hf_token) -> Critique:
+def _local_with_fallback(image_path, aspect, temperature, top_p, hf_token) -> Critique:
     # fall back to the remote model if local model ran out of GPU quota or failed
     try:
-        return local_critique(image_path, aspect, max_tokens, temperature, top_p)
+        return local_critique(image_path, aspect,temperature, top_p)
     except Exception:
         token = resolve_token(hf_token)
         if not token:
@@ -72,6 +71,6 @@ def _local_with_fallback(image_path, aspect, max_tokens, temperature, top_p, hf_
             "The local model is unavailable (GPU quota may be exhausted). "
             "Falling back to the hosted model."
         )
-        result = remote_critique(image_path, aspect, max_tokens, temperature, top_p, token)
+        result = remote_critique(image_path, aspect, temperature, top_p, token)
         result.route = "Failover (local unavailable)"
         return result

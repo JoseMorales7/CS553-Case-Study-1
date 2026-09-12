@@ -8,6 +8,8 @@ LOCAL_MODEL = "Thunderbolt215215/ArtiMuse"
 
 # Select model provider
 REMOTE_PROVIDER = "auto"
+REMOTE_MAX_TOKENS = 2048
+LOCAL_MAX_TOKENS = 512
 
 # The heading advice for both models
 EVALUATION_HEADING = "How to improve"

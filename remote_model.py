@@ -6,7 +6,7 @@ from PIL import Image
 
 from huggingface_hub import InferenceClient
 
-from config import EVALUATION_HEADING, REMOTE_MODEL, REMOTE_PROVIDER, remote_prompt
+from config import EVALUATION_HEADING, REMOTE_MODEL, REMOTE_PROVIDER, remote_prompt, REMOTE_MAX_TOKENS
 from critique import Critique
 
 SCORE_PATTERN = re.compile(r"##\s*Score:\s*(\d+)\s*/\s*100")
@@ -45,7 +45,7 @@ def parse_response(text: str) -> tuple[int | None, str]:
     return score, evaluation
 
 
-def remote_critique(image_path, aspect, max_tokens, temperature, top_p, hf_token) -> Critique:
+def remote_critique(image_path, aspect, temperature, top_p, hf_token) -> Critique:
     client = InferenceClient(provider=REMOTE_PROVIDER, token=hf_token)
     response = client.chat.completions.create(
         model=REMOTE_MODEL,
@@ -58,7 +58,7 @@ def remote_critique(image_path, aspect, max_tokens, temperature, top_p, hf_token
                 ],
             }
         ],
-        max_tokens=max_tokens,
+        max_tokens=REMOTE_MAX_TOKENS,
         temperature=temperature,
         top_p=top_p,
     )

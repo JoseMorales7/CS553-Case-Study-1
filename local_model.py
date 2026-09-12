@@ -8,7 +8,7 @@ from torchvision.transforms.functional import InterpolationMode
 from transformers import AutoTokenizer
 from transformers.dynamic_module_utils import get_class_from_dynamic_module
 
-from config import ARTIMUSE_SCORE_QUESTION,LOCAL_MODEL, advice_question
+from config import ARTIMUSE_SCORE_QUESTION,LOCAL_MODEL, advice_question, LOCAL_MAX_TOKENS
 from critique import Critique
 
 logger = logging.getLogger(__name__)
@@ -105,7 +105,7 @@ def _ensure_loaded():
 
 
 @spaces.GPU(duration=120)
-def local_critique(image_path, aspect, max_tokens, temperature, top_p) -> Critique:
+def local_critique(image_path, aspect, temperature, top_p) -> Critique:
     model, tokenizer = _ensure_loaded()
     device, dtype = _device_and_dtype()
     pixel_values = load_image(image_path).to(dtype).to(device)
@@ -118,7 +118,7 @@ def local_critique(image_path, aspect, max_tokens, temperature, top_p) -> Critiq
         raise RuntimeError(f"ArtiMuse returned an unparseable score token: {raw_score!r}")
 
     text_config = dict(
-        max_new_tokens=min(int(max_tokens), 512),
+        max_new_tokens=LOCAL_MAX_TOKENS,
         do_sample=temperature > 0,
         temperature=max(float(temperature), 0.01),
         top_p=float(top_p),

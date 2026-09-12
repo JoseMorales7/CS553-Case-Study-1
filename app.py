@@ -63,7 +63,7 @@ CSS = """
 with gr.Blocks(title="Canvas Critic") as demo:
     image_path_state = gr.State()
 
-    with gr.Sidebar():
+    with gr.Sidebar(width=420):
         gr.Markdown("### Hosted model access")
         gr.LoginButton()
         login_note = gr.Markdown(elem_id="model-note")
@@ -80,12 +80,8 @@ with gr.Blocks(title="Canvas Critic") as demo:
             value=ASPECTS[0],
             info="The model will give advice on how to improve this aspect of the image.",
         )
-        max_tokens = gr.Slider(
-            minimum=512, maximum=4096, value=2048, step=256, 
-            label="Maximum response tokens",
-        )
         temperature = gr.Slider(
-            minimum=0.0, maximum=1.5, value=0.4, step=0.1,
+            minimum=0.0, maximum=1.5, value=0.0, step=0.1,
             label="Creative freedom (temperature)",
         )
         top_p = gr.Slider(
@@ -141,7 +137,6 @@ with gr.Blocks(title="Canvas Critic") as demo:
         inputs=[
             image_path_state,
             aspect,
-            max_tokens,
             temperature,
             top_p,
             use_local_model,
